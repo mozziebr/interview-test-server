@@ -1,6 +1,11 @@
+import logging
+
 from flask import jsonify, redirect, request
 from app import app
 from . import controllers, error_handlers
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 @app.route('/tax-calculator/')
@@ -19,34 +24,38 @@ def default_brackets():
 
 @app.route('/tax-calculator', methods=['GET'])
 def tax_calculator():
-    """Calculate total tax based on salary and tax year."""
+    """
+    Calculate total tax based on salary and tax year.
+
+    Returns:
+        jsonify: JSON response containing total_tax, tax_bands, and effective_rate.
+    """
     try:
-        # Extracting query parameters from the request
         salary = float(request.args.get('salary'))
         tax_year = int(request.args.get('tax_year'))
 
-        # Validating tax year
         if tax_year not in [2019, 2020, 2021, 2022]:
+            error_message = 'Invalid tax year. Only years 2019, 2020, 2021, and 2022 are supported.'
+            logger.error(error_message)
             return jsonify({
                 'errors': error_handlers.format_error(
-                    'Invalid tax year. Only years 2019, 2020, 2021, and 2022 are supported.',
+                    error_message,
                     field='tax_year'
                 )
             }), 400
 
-        # Validating salary
         if salary <= 0:
+            error_message = 'Salary must be a positive value.'
+            logger.error(error_message)
             return jsonify({
                 'errors': error_handlers.format_error(
-                    'Salary must be a positive value.',
+                    error_message,
                     field='salary'
                 )
             }), 400
 
-        # Calculating tax
         total_tax, tax_bands, effective_rate = controllers.calculate_tax(salary, tax_year)
 
-        # Returning JSON response with total_tax, tax_bands, and effective_rate
         return jsonify({
             'total_tax': total_tax,
             'tax_bands': tax_bands,
@@ -54,16 +63,18 @@ def tax_calculator():
         }), 200
 
     except ValueError:
-        # Handling invalid input types
+        error_message = 'Invalid input types. Salary and tax_year must be numeric values.'
+        logger.error(error_message)
         return jsonify({
             'errors': error_handlers.format_error(
-                'Invalid input types. Salary and tax_year must be numeric values.',
+                error_message,
             )
         }), 400
     except Exception as e:
-        # Handling other exceptions
+        error_message = str(e)
+        logger.error(error_message)
         return jsonify({
             'errors': error_handlers.format_error(
-                str(e),
+                error_message,
             )
         }), 500
